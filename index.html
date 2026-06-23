@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League of Legends | Análise de Win Rate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        :root {
+            /* Paleta Analítica: Cinzas e Roxos Sóbrios */
+            --bg-body: #2b2b32;
+            --bg-surface: #363640;
+            --bg-surface-hover: #42424e;
+            --border-color: #4b4b57;
+            --text-main: #e2e2e8;
+            --text-muted: #9ea0ab;
+            --accent-purple: #8257e5;
+            --accent-purple-light: #9f7af0;
+            --positive-green: #4ade80;
+            --negative-red: #f87171;
+            --radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* --- KPIs --- */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .kpi-card {
+            background-color: var(--bg-surface);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            border-top: 4px solid var(--accent-purple);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-card h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-card .value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* --- Controles da Tabela --- */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .search-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 0.75rem 1rem;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            border-radius: var(--radius);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-purple-light);
+        }
+
+        /* --- Tabela --- */
+        .table-container {
+            background-color: var(--bg-surface);
+            border-radius: var(--radius);
+            overflow-x: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: rgba(0, 0, 0, 0.1);
+            color: var(--text-muted);
+            font-weight: 500;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        th:hover {
+            color: var(--accent-purple-light);
+        }
+
+        th::after {
+            content: ' \21D5';
+            font-size: 0.8em;
+            opacity: 0.5;
+            margin-left: 5px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: var(--bg-surface-hover);
+        }
+
+        .wr-high { color: var(--positive-green); font-weight: 500; }
+        .wr-low { color: var(--negative-red); font-weight: 500; }
+        .patch-badge {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        /* Loader */
+        #loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <header>
+            <h1>Dashboard Analítico</h1>
+            <p class="subtitle">Métricas de Campeões | Dados Processados da Riot API</p>
+        </header>
+
+        <div id="loading">Carregando dados estruturados...</div>
+
+        <div id="dashboard-content" style="display: none;">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <h3>Total de Jogos Analisados</h3>
+                    <div class="value" id="kpi-jogos">0</div>
+                </div>
+                <div class="kpi-card">
+                    <h3>Win Rate Global</h3>
+                    <div class="value" id="kpi-wr-global">0%</div>
+                </div>
+                <div class="kpi-card">
+                    <h3>Maior Win Rate Específico</h3>
+                    <div class="value" id="kpi-max-wr">0%</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar campeão...">
+            </div>
+
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th data-sort="Patch">Patch</th>
+                            <th data-sort="Campeao">Campeão</th>
+                            <th data-sort="Total_Jogos">Total de Jogos</th>
+                            <th data-sort="Vitorias">Vitórias</th>
+                            <th data-sort="WinRate">Win Rate (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dadosGlobais = [];
+        let ordenacaoAtual = { coluna: null, ascendente: true };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Lendo especificamente o seu novo arquivo
+            Papa.parse("relatorio_winrate.csv", {
+                download: true,
+                header: true,
+                delimiter: ";", // Ajuste crítico: delimitador do seu CSV
+                skipEmptyLines: true,
+                complete: function(results) {
+                    
+                    // Tratamento dos dados brutos
+                    dadosGlobais = results.data.map(linha => {
+                        // Converte valores com vírgula para ponto e depois para float
+                        let wrOriginal = linha['Win_Rate (%)'] ? String(linha['Win_Rate (%)']).trim() : "0";
+                        let wrNumerico = parseFloat(wrOriginal.replace(',', '.'));
+
+                        return {
+                            Patch: linha['Patch'],
+                            Campeao: linha['Campeao'],
+                            Total_Jogos: parseInt(linha['Total_Jogos']) || 0,
+                            Vitorias: parseInt(linha['Vitorias']) || 0,
+                            WinRate: isNaN(wrNumerico) ? 0 : wrNumerico
+                        };
+                    });
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('dashboard-content').style.display = 'block';
+                    
+                    atualizarKPIs(dadosGlobais);
+                    renderizarTabela(dadosGlobais);
+                },
+                error: function(error) {
+                    document.getElementById('loading').innerHTML = `Erro ao carregar 'relatorio_winrate.csv'.<br>Detalhe: ${error.message}`;
+                }
+            });
+        });
+
+        function atualizarKPIs(dados) {
+            if (dados.length === 0) return;
+
+            const totalJogos = dados.reduce((acc, curr) => acc + curr.Total_Jogos, 0);
+            const totalVitorias = dados.reduce((acc, curr) => acc + curr.Vitorias, 0);
+            
+            // Calculando a Win Rate Global (Total Vitórias / Total Jogos)
+            const winRateGlobal = totalJogos > 0 ? (totalVitorias / totalJogos) * 100 : 0;
+            
+            // Pegando a maior Win Rate individual do CSV
+            const maiorWr = Math.max(...dados.map(d => d.WinRate));
+
+            document.getElementById('kpi-jogos').innerText = totalJogos.toLocaleString('pt-BR');
+            document.getElementById('kpi-wr-global').innerText = winRateGlobal.toFixed(2) + '%';
+            document.getElementById('kpi-max-wr').innerText = maiorWr.toFixed(2) + '%';
+        }
+
+        function renderizarTabela(dados) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            dados.forEach(linha => {
+                const tr = document.createElement('tr');
+                
+                // Formatação visual para destacar win rates boas/ruins
+                let classeWr = '';
+                if (linha.WinRate >= 50) classeWr = 'wr-high';
+                else if (linha.WinRate < 48) classeWr = 'wr-low';
+
+                tr.innerHTML = `
+                    <td><span class="patch-badge">${linha.Patch || '-'}</span></td>
+                    <td><strong>${linha.Campeao || 'Desconhecido'}</strong></td>
+                    <td>${linha.Total_Jogos.toLocaleString('pt-BR')}</td>
+                    <td>${linha.Vitorias.toLocaleString('pt-BR')}</td>
+                    <td class="${classeWr}">${linha.WinRate.toFixed(2).replace('.', ',')}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Lógica de Pesquisa
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            const dadosFiltrados = dadosGlobais.filter(linha => 
+                (linha.Campeao || '').toLowerCase().includes(termo) ||
+                String(linha.Patch).toLowerCase().includes(termo)
+            );
+            renderizarTabela(dadosFiltrados);
+        });
+
+        // Lógica de Ordenação
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const coluna = th.getAttribute('data-sort');
+                
+                if (ordenacaoAtual.coluna === coluna) {
+                    ordenacaoAtual.ascendente = !ordenacaoAtual.ascendente;
+                } else {
+                    ordenacaoAtual.coluna = coluna;
+                    ordenacaoAtual.ascendente = false; // Começa ordenando do maior pro menor por padrão
+                }
+
+                const dadosOrdenados = [...dadosGlobais].sort((a, b) => {
+                    let valorA = a[coluna];
+                    let valorB = b[coluna];
+
+                    if (typeof valorA === 'string' && coluna !== 'Patch') {
+                        return ordenacaoAtual.ascendente 
+                            ? valorA.localeCompare(valorB) 
+                            : valorB.localeCompare(valorA);
+                    } else {
+                        // Se for patch, trata como número para ordernar 16.10 corretamente após 16.9
+                        if(coluna === 'Patch') {
+                            valorA = parseFloat(valorA);
+                            valorB = parseFloat(valorB);
+                        }
+                        return ordenacaoAtual.ascendente 
+                            ? valorA - valorB 
+                            : valorB - valorA;
+                    }
+                });
+
+                const termo = document.getElementById('searchInput').value.toLowerCase();
+                const dadosFinais = dadosOrdenados.filter(linha => 
+                    (linha.Campeao || '').toLowerCase().includes(termo) ||
+                    String(linha.Patch).toLowerCase().includes(termo)
+                );
+
+                renderizarTabela(dadosFinais);
+            });
+        });
+    </script>
+</body>
+</html>
