@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>League of Legends | Análise de Win Rate</title>
+    <title>League of Legends | Analytics Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
         :root {
-            /* Paleta Analítica: Cinzas e Roxos Sóbrios */
-            --bg-body: #2b2b32;
-            --bg-surface: #363640;
-            --bg-surface-hover: #42424e;
-            --border-color: #4b4b57;
+            --bg-body: #1e1e24;
+            --bg-surface: #2b2b36;
+            --bg-surface-hover: #3a3a47;
+            --border-color: #3f3f4e;
             --text-main: #e2e2e8;
             --text-muted: #9ea0ab;
             --accent-purple: #8257e5;
@@ -23,158 +22,56 @@
             --radius: 8px;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); padding: 2rem; line-height: 1.6; }
+        .dashboard-container { max-width: 1200px; margin: 0 auto; }
+        header { margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+        h1 { font-size: 1.8rem; color: var(--text-main); font-weight: 600; }
+        p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
 
-        body {
-            background-color: var(--bg-body);
-            color: var(--text-main);
-            padding: 2rem;
-            line-height: 1.6;
-        }
-
-        .dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        header {
-            margin-bottom: 2rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
-        }
-
-        h1 {
-            font-size: 1.8rem;
-            color: var(--text-main);
-            font-weight: 600;
-        }
-
-        p.subtitle {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
+        /* --- Sistema de Abas --- */
+        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; overflow-x: auto; }
+        .tab-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.6rem 1.5rem; border-radius: var(--radius); cursor: pointer; transition: all 0.2s; font-weight: 500; white-space: nowrap; }
+        .tab-btn:hover:not(.active) { background: var(--bg-surface-hover); color: var(--text-main); }
+        .tab-btn.active { background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); box-shadow: 0 4px 12px rgba(130, 87, 229, 0.3); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* --- KPIs --- */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2.5rem;
-        }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .kpi-card { background-color: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius); border-top: 4px solid var(--accent-purple); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .kpi-card h3 { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+        .kpi-card .value { font-size: 2rem; font-weight: 600; color: var(--text-main); }
 
-        .kpi-card {
-            background-color: var(--bg-surface);
-            padding: 1.5rem;
-            border-radius: var(--radius);
-            border-top: 4px solid var(--accent-purple);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .kpi-card h3 {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.5rem;
-        }
-
-        .kpi-card .value {
-            font-size: 2rem;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        /* --- Controles da Tabela --- */
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .search-input {
-            width: 100%;
-            max-width: 300px;
-            padding: 0.75rem 1rem;
-            background-color: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            border-radius: var(--radius);
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .search-input:focus {
-            border-color: var(--accent-purple-light);
-        }
+        /* --- Controles --- */
+        .controls { margin-bottom: 1rem; }
+        .search-input { width: 100%; max-width: 300px; padding: 0.75rem 1rem; background-color: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-main); border-radius: var(--radius); outline: none; transition: border-color 0.2s; }
+        .search-input:focus { border-color: var(--accent-purple-light); }
 
         /* --- Tabela --- */
-        .table-container {
-            background-color: var(--bg-surface);
-            border-radius: var(--radius);
-            overflow-x: auto;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
+        .table-container { background-color: var(--bg-surface); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); }
+        th { background-color: rgba(0, 0, 0, 0.2); color: var(--text-muted); font-weight: 500; cursor: pointer; user-select: none; transition: color 0.2s; }
+        th:hover { color: var(--accent-purple-light); }
+        th::after { content: ' \21D5'; font-size: 0.8em; opacity: 0.5; margin-left: 5px; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background-color: var(--bg-surface-hover); }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th, td {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        th {
-            background-color: rgba(0, 0, 0, 0.1);
-            color: var(--text-muted);
-            font-weight: 500;
-            cursor: pointer;
-            user-select: none;
-            transition: color 0.2s;
-        }
-
-        th:hover {
-            color: var(--accent-purple-light);
-        }
-
-        th::after {
-            content: ' \21D5';
-            font-size: 0.8em;
-            opacity: 0.5;
-            margin-left: 5px;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        tr:hover td {
-            background-color: var(--bg-surface-hover);
-        }
-
+        /* --- Utilitários Visuais --- */
         .wr-high { color: var(--positive-green); font-weight: 500; }
         .wr-low { color: var(--negative-red); font-weight: 500; }
-        .patch-badge {
-            background-color: rgba(255, 255, 255, 0.1);
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.85em;
-        }
-
-        /* Loader */
-        #loading {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-muted);
-        }
+        .badge { background-color: rgba(255, 255, 255, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85em; }
+        .prob-high-nerf { color: #fca5a5; background: rgba(248, 113, 113, 0.15); border-radius: 4px; padding: 2px 6px;}
+        .prob-high-buff { color: #86efac; background: rgba(74, 222, 128, 0.15); border-radius: 4px; padding: 2px 6px;}
+        .highlight-data { color: var(--accent-purple-light); font-weight: 500; }
+        
+        /* Loader Debugger */
+        #loading { padding: 3rem; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius); border-top: 4px solid var(--accent-purple);}
+        #loading-status { margin-top: 1.5rem; font-family: monospace; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 6px; line-height: 1.8; color: #a3a3a3; }
+        .error-text { color: var(--negative-red); font-weight: bold; }
+        .success-text { color: var(--positive-green); }
     </style>
 </head>
 <body>
@@ -182,180 +79,343 @@
     <div class="dashboard-container">
         <header>
             <h1>Dashboard Analítico</h1>
-            <p class="subtitle">Métricas de Campeões | Dados Processados da Riot API</p>
+            <p class="subtitle">Métricas, Mecânicas e Modelos Preditivos | Riot API</p>
         </header>
 
-        <div id="loading">Carregando dados estruturados...</div>
+        <div id="loading">
+            <h2>Processando Modelos de Dados...</h2>
+            <div id="loading-status">Iniciando diagnósticos de ambiente...</div>
+        </div>
 
         <div id="dashboard-content" style="display: none;">
-            <div class="kpi-grid">
-                <div class="kpi-card">
-                    <h3>Total de Jogos Analisados</h3>
-                    <div class="value" id="kpi-jogos">0</div>
+            
+            <div class="tabs">
+                <button class="tab-btn active" onclick="mudarAba('aba-historico', this)">Histórico de Patches</button>
+                <button class="tab-btn" onclick="mudarAba('aba-previsao', this)">Previsão Próximo Patch</button>
+                <button class="tab-btn" onclick="mudarAba('aba-mecanicas', this)">Mecânicas (Patch 16.12)</button>
+            </div>
+
+            <div id="aba-historico" class="tab-content active">
+                <div class="kpi-grid">
+                    <div class="kpi-card"><h3>Total de Jogos Analisados</h3><div class="value" id="kpi-jogos">0</div></div>
+                    <div class="kpi-card"><h3>Win Rate Global</h3><div class="value" id="kpi-wr-global">0%</div></div>
+                    <div class="kpi-card"><h3>Maior Win Rate Registrado</h3><div class="value" id="kpi-max-wr">0%</div></div>
                 </div>
-                <div class="kpi-card">
-                    <h3>Win Rate Global</h3>
-                    <div class="value" id="kpi-wr-global">0%</div>
-                </div>
-                <div class="kpi-card">
-                    <h3>Maior Win Rate Específico</h3>
-                    <div class="value" id="kpi-max-wr">0%</div>
+                <div class="controls"><input type="text" id="searchHistorico" class="search-input" placeholder="Pesquisar campeão ou patch..."></div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th onclick="ordenarTabela('historico', 'Patch')">Patch</th>
+                                <th onclick="ordenarTabela('historico', 'Campeao')">Campeão</th>
+                                <th onclick="ordenarTabela('historico', 'Total_Jogos')">Total de Jogos</th>
+                                <th onclick="ordenarTabela('historico', 'Vitorias')">Vitórias</th>
+                                <th onclick="ordenarTabela('historico', 'WinRate')">Win Rate (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBodyHistorico"></tbody>
+                    </table>
                 </div>
             </div>
 
-            <div class="controls">
-                <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar campeão...">
+            <div id="aba-previsao" class="tab-content">
+                <div class="kpi-grid">
+                    <div class="kpi-card"><h3>Campeões Mapeados</h3><div class="value" id="kpi-previsao-campeoes">0</div></div>
+                    <div class="kpi-card"><h3>Maior Risco de Nerf</h3><div class="value" id="kpi-max-nerf" style="color: var(--negative-red)">-</div></div>
+                    <div class="kpi-card"><h3>Maior Chance de Buff</h3><div class="value" id="kpi-max-buff" style="color: var(--positive-green)">-</div></div>
+                </div>
+                <div class="controls"><input type="text" id="searchPrevisao" class="search-input" placeholder="Pesquisar campeão..."></div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th onclick="ordenarTabela('previsao', 'Name')">Campeão</th>
+                                <th onclick="ordenarTabela('previsao', 'WinRate')">Win Rate Atual</th>
+                                <th onclick="ordenarTabela('previsao', 'PickRate')">Pick Rate</th>
+                                <th onclick="ordenarTabela('previsao', 'BanRate')">Ban Rate</th>
+                                <th onclick="ordenarTabela('previsao', 'ProbNerf')">Prob. de Nerf</th>
+                                <th onclick="ordenarTabela('previsao', 'ProbBuff')">Prob. de Buff</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBodyPrevisao"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="table-container">
-                <table id="dataTable">
-                    <thead>
-                        <tr>
-                            <th data-sort="Patch">Patch</th>
-                            <th data-sort="Campeao">Campeão</th>
-                            <th data-sort="Total_Jogos">Total de Jogos</th>
-                            <th data-sort="Vitorias">Vitórias</th>
-                            <th data-sort="WinRate">Win Rate (%)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        </tbody>
-                </table>
+            <div id="aba-mecanicas" class="tab-content">
+                <div class="kpi-grid">
+                    <div class="kpi-card"><h3>Maior Farm (10 min)</h3><div class="value" id="kpi-max-farm">-</div></div>
+                    <div class="kpi-card"><h3>Maior Dano na Equipe</h3><div class="value" id="kpi-max-dmg">-</div></div>
+                    <div class="kpi-card"><h3>Maior Reflexo (Dodges)</h3><div class="value" id="kpi-max-dodge">-</div></div>
+                </div>
+                <div class="controls"><input type="text" id="searchMecanicas" class="search-input" placeholder="Pesquisar campeão..."></div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th onclick="ordenarTabela('mecanicas', 'Campeao')">Campeão</th>
+                                <th onclick="ordenarTabela('mecanicas', 'Numero_de_Jogos')">Jogos Analisados</th>
+                                <th onclick="ordenarTabela('mecanicas', 'Minions_10min_Medio')">Farm 10m (Média)</th>
+                                <th onclick="ordenarTabela('mecanicas', 'Dano_Equipe_Pct_Medio')">% Dano da Equipe</th>
+                                <th onclick="ordenarTabela('mecanicas', 'Skillshots_Dodged_Medio')">Skillshots Dodged</th>
+                                <th onclick="ordenarTabela('mecanicas', 'Dodges_Milissegundo_Medio')">Dodges / ms</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBodyMecanicas"></tbody>
+                    </table>
+                </div>
             </div>
+
         </div>
     </div>
 
     <script>
-        let dadosGlobais = [];
-        let ordenacaoAtual = { coluna: null, ascendente: true };
+        // ESTADO GLOBAL
+        let dadosHistorico = [];
+        let dadosPrevisao = [];
+        let dadosMecanicas = [];
+        let sortHistorico = { coluna: null, ascendente: false };
+        let sortPrevisao = { coluna: null, ascendente: false };
+        let sortMecanicas = { coluna: null, ascendente: false };
+        const logger = document.getElementById('loading-status');
 
+        // FUNÇÃO DE LEITURA BLINDADA (ANTI-BUG)
+        function carregarCSV(url, nomeArquivo, formatador) {
+            return new Promise((resolve, reject) => {
+                logger.innerHTML += `<br>> Tentando baixar: <strong>${nomeArquivo}</strong>...`;
+                
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: 'greedy', // Ignora linhas em branco finais que quebram o código
+                    complete: function(results) {
+                        try {
+                            // Se o GitHub retornar erro 404
+                            if(results.errors && results.errors.length > 0 && results.errors[0].type === "Network") {
+                                reject(`O arquivo ${nomeArquivo} não foi encontrado. Verifique se o nome no repositório tem letras maiúsculas diferentes ou se o GitHub Pages ainda está carregando.`);
+                                return;
+                            }
+                            
+                            // Aplica o mapeamento inteligente
+                            const dadosTratados = results.data.map(formatador).filter(d => d !== null);
+                            logger.innerHTML += ` <span class="success-text">[LIDO COM SUCESSO]</span>`;
+                            resolve(dadosTratados);
+                        } catch (e) {
+                            reject(`Erro ao interpretar colunas do ${nomeArquivo}: ${e.message}`);
+                        }
+                    },
+                    error: function(err) {
+                        reject(`Falha na leitura de ${nomeArquivo}: ${err.message}`);
+                    }
+                });
+            });
+        }
+
+        // FUNÇÕES FORMATADORAS (Buscam colunas dinamicamente para evitar erros de espaço)
+        const getNumSeguro = (linha, palavraChave) => {
+            const chaveEncontrada = Object.keys(linha).find(k => k.toLowerCase().includes(palavraChave.toLowerCase()));
+            if(!chaveEncontrada || !linha[chaveEncontrada]) return 0;
+            return parseFloat(String(linha[chaveEncontrada]).replace(',', '.')) || 0;
+        };
+
+        const formataHistorico = (linha) => {
+            const campeaoKey = Object.keys(linha).find(k => k.toLowerCase().includes('campeao') || k.toLowerCase().includes('champion'));
+            if (!campeaoKey || !linha[campeaoKey]) return null;
+            return {
+                Patch: getNumSeguro(linha, 'Patch'),
+                Campeao: linha[campeaoKey],
+                Total_Jogos: parseInt(linha['Total_Jogos']) || 0,
+                Vitorias: parseInt(linha['Vitorias']) || 0,
+                WinRate: getNumSeguro(linha, 'Win_Rate') || getNumSeguro(linha, 'Win Rate')
+            };
+        };
+
+        const formataPrevisao = (linha) => {
+            const nameKey = Object.keys(linha).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nome_join');
+            if (!nameKey || !linha[nameKey]) return null;
+            return {
+                Name: linha[nameKey],
+                WinRate: getNumSeguro(linha, 'Win %') || getNumSeguro(linha, 'Win Rate'),
+                PickRate: getNumSeguro(linha, 'Pick %') || getNumSeguro(linha, 'Pick Rate'),
+                BanRate: getNumSeguro(linha, 'Ban %') || getNumSeguro(linha, 'Ban Rate'),
+                ProbNerf: getNumSeguro(linha, 'Prob_Nerf') || getNumSeguro(linha, 'Nerf'),
+                ProbBuff: getNumSeguro(linha, 'Prob_Buff') || getNumSeguro(linha, 'Buff')
+            };
+        };
+
+        const formataMecanicas = (linha) => {
+            const campeaoKey = Object.keys(linha).find(k => k.toLowerCase().includes('campeao'));
+            if (!campeaoKey || !linha[campeaoKey]) return null;
+            return {
+                Campeao: linha[campeaoKey],
+                Numero_de_Jogos: parseInt(getNumSeguro(linha, 'Numero_de_Jogos')),
+                Skillshots_Dodged_Medio: getNumSeguro(linha, 'Skillshots_Dodged_Medio'),
+                Dodges_Milissegundo_Medio: getNumSeguro(linha, 'Dodges_Milissegundo_Medio'),
+                Minions_10min_Medio: getNumSeguro(linha, 'Minions_10min_Medio'),
+                Dano_Equipe_Pct_Medio: getNumSeguro(linha, 'Dano_Equipe_Pct_Medio')
+            };
+        };
+
+        // INICIALIZAÇÃO
         document.addEventListener("DOMContentLoaded", () => {
-            // Lendo especificamente o seu novo arquivo
-            Papa.parse("relatorio_winrate.csv", {
-                download: true,
-                header: true,
-                delimiter: ";", // Ajuste crítico: delimitador do seu CSV
-                skipEmptyLines: true,
-                complete: function(results) {
-                    
-                    // Tratamento dos dados brutos
-                    dadosGlobais = results.data.map(linha => {
-                        // Converte valores com vírgula para ponto e depois para float
-                        let wrOriginal = linha['Win_Rate (%)'] ? String(linha['Win_Rate (%)']).trim() : "0";
-                        let wrNumerico = parseFloat(wrOriginal.replace(',', '.'));
+            
+            // Trava de Segurança: Checa se o usuário abriu com 2 cliques no celular/pc
+            if (window.location.protocol === 'file:') {
+                logger.innerHTML += `<br><br><span class="error-text">ERRO CRÍTICO: Você abriu este arquivo diretamente (file://).<br>O navegador bloqueia a leitura de CSVs assim por segurança.<br>Para funcionar, acesse através do link gerado pelo GitHub Pages!</span>`;
+                return;
+            }
 
-                        return {
-                            Patch: linha['Patch'],
-                            Campeao: linha['Campeao'],
-                            Total_Jogos: parseInt(linha['Total_Jogos']) || 0,
-                            Vitorias: parseInt(linha['Vitorias']) || 0,
-                            WinRate: isNaN(wrNumerico) ? 0 : wrNumerico
-                        };
-                    });
+            Promise.all([
+                carregarCSV("relatorio_winrate.csv", "Relatório de Win Rate", formataHistorico),
+                carregarCSV("previsao_proximo_patch.csv", "Previsão de Patches", formataPrevisao),
+                carregarCSV("dados_dashboard_patch_16_12.csv", "Mecânicas In-Game", formataMecanicas)
+            ])
+            .then(([resHistorico, resPrevisao, resMecanicas]) => {
+                logger.innerHTML += `<br><br><span class="success-text">>>> Todos os dados carregados! Construindo interface...</span>`;
+                
+                dadosHistorico = resHistorico;
+                dadosPrevisao = resPrevisao;
+                dadosMecanicas = resMecanicas;
 
+                setTimeout(() => { // Timeout visual de 0.5s para transição suave
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('dashboard-content').style.display = 'block';
                     
-                    atualizarKPIs(dadosGlobais);
-                    renderizarTabela(dadosGlobais);
-                },
-                error: function(error) {
-                    document.getElementById('loading').innerHTML = `Erro ao carregar 'relatorio_winrate.csv'.<br>Detalhe: ${error.message}`;
-                }
+                    atualizarKPIsHistorico(); renderizarTabelaHistorico(dadosHistorico);
+                    atualizarKPIsPrevisao(); renderizarTabelaPrevisao(dadosPrevisao);
+                    atualizarKPIsMecanicas(); renderizarTabelaMecanicas(dadosMecanicas);
+                }, 500);
+            })
+            .catch(erro => {
+                logger.innerHTML += `<br><br><span class="error-text">>> FALHA DE CARREGAMENTO: ${erro}</span>`;
             });
         });
 
-        function atualizarKPIs(dados) {
-            if (dados.length === 0) return;
-
-            const totalJogos = dados.reduce((acc, curr) => acc + curr.Total_Jogos, 0);
-            const totalVitorias = dados.reduce((acc, curr) => acc + curr.Vitorias, 0);
-            
-            // Calculando a Win Rate Global (Total Vitórias / Total Jogos)
-            const winRateGlobal = totalJogos > 0 ? (totalVitorias / totalJogos) * 100 : 0;
-            
-            // Pegando a maior Win Rate individual do CSV
-            const maiorWr = Math.max(...dados.map(d => d.WinRate));
-
-            document.getElementById('kpi-jogos').innerText = totalJogos.toLocaleString('pt-BR');
-            document.getElementById('kpi-wr-global').innerText = winRateGlobal.toFixed(2) + '%';
-            document.getElementById('kpi-max-wr').innerText = maiorWr.toFixed(2) + '%';
+        // --- LÓGICA DE INTERFACE ---
+        function mudarAba(abaId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(abaId).classList.add('active');
+            btnElement.classList.add('active');
         }
 
-        function renderizarTabela(dados) {
-            const tbody = document.getElementById('tableBody');
+        // ABA 1
+        function atualizarKPIsHistorico() {
+            if (!dadosHistorico.length) return;
+            const tJogos = dadosHistorico.reduce((acc, curr) => acc + curr.Total_Jogos, 0);
+            const tVitorias = dadosHistorico.reduce((acc, curr) => acc + curr.Vitorias, 0);
+            document.getElementById('kpi-jogos').innerText = tJogos.toLocaleString('pt-BR');
+            document.getElementById('kpi-wr-global').innerText = (tJogos > 0 ? (tVitorias / tJogos) * 100 : 0).toFixed(2) + '%';
+            document.getElementById('kpi-max-wr').innerText = Math.max(...dadosHistorico.map(d => d.WinRate)).toFixed(2) + '%';
+        }
+        function renderizarTabelaHistorico(dados) {
+            const tbody = document.getElementById('tableBodyHistorico');
             tbody.innerHTML = '';
-
             dados.forEach(linha => {
+                let patchExibicao = linha.Patch.toFixed(2).replace('.', ',');
+                if(patchExibicao.endsWith(',00')) patchExibicao = parseInt(linha.Patch); 
+                else if(patchExibicao.endsWith('0')) patchExibicao = patchExibicao.slice(0, -1);
                 const tr = document.createElement('tr');
-                
-                // Formatação visual para destacar win rates boas/ruins
-                let classeWr = '';
-                if (linha.WinRate >= 50) classeWr = 'wr-high';
-                else if (linha.WinRate < 48) classeWr = 'wr-low';
-
                 tr.innerHTML = `
-                    <td><span class="patch-badge">${linha.Patch || '-'}</span></td>
-                    <td><strong>${linha.Campeao || 'Desconhecido'}</strong></td>
+                    <td><span class="badge">${patchExibicao}</span></td>
+                    <td><strong>${linha.Campeao || '-'}</strong></td>
                     <td>${linha.Total_Jogos.toLocaleString('pt-BR')}</td>
                     <td>${linha.Vitorias.toLocaleString('pt-BR')}</td>
-                    <td class="${classeWr}">${linha.WinRate.toFixed(2).replace('.', ',')}%</td>
+                    <td class="${linha.WinRate >= 50 ? 'wr-high' : (linha.WinRate < 48 ? 'wr-low' : '')}">${linha.WinRate.toFixed(2).replace('.', ',')}%</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
-
-        // Lógica de Pesquisa
-        document.getElementById('searchInput').addEventListener('input', (e) => {
+        document.getElementById('searchHistorico').addEventListener('input', (e) => {
             const termo = e.target.value.toLowerCase();
-            const dadosFiltrados = dadosGlobais.filter(linha => 
-                (linha.Campeao || '').toLowerCase().includes(termo) ||
-                String(linha.Patch).toLowerCase().includes(termo)
-            );
-            renderizarTabela(dadosFiltrados);
+            renderizarTabelaHistorico(dadosHistorico.filter(linha => String(linha.Campeao).toLowerCase().includes(termo) || String(linha.Patch).includes(termo)));
         });
 
-        // Lógica de Ordenação
-        document.querySelectorAll('th[data-sort]').forEach(th => {
-            th.addEventListener('click', () => {
-                const coluna = th.getAttribute('data-sort');
-                
-                if (ordenacaoAtual.coluna === coluna) {
-                    ordenacaoAtual.ascendente = !ordenacaoAtual.ascendente;
-                } else {
-                    ordenacaoAtual.coluna = coluna;
-                    ordenacaoAtual.ascendente = false; // Começa ordenando do maior pro menor por padrão
-                }
-
-                const dadosOrdenados = [...dadosGlobais].sort((a, b) => {
-                    let valorA = a[coluna];
-                    let valorB = b[coluna];
-
-                    if (typeof valorA === 'string' && coluna !== 'Patch') {
-                        return ordenacaoAtual.ascendente 
-                            ? valorA.localeCompare(valorB) 
-                            : valorB.localeCompare(valorA);
-                    } else {
-                        // Se for patch, trata como número para ordernar 16.10 corretamente após 16.9
-                        if(coluna === 'Patch') {
-                            valorA = parseFloat(valorA);
-                            valorB = parseFloat(valorB);
-                        }
-                        return ordenacaoAtual.ascendente 
-                            ? valorA - valorB 
-                            : valorB - valorA;
-                    }
-                });
-
-                const termo = document.getElementById('searchInput').value.toLowerCase();
-                const dadosFinais = dadosOrdenados.filter(linha => 
-                    (linha.Campeao || '').toLowerCase().includes(termo) ||
-                    String(linha.Patch).toLowerCase().includes(termo)
-                );
-
-                renderizarTabela(dadosFinais);
+        // ABA 2
+        function atualizarKPIsPrevisao() {
+            if (!dadosPrevisao.length) return;
+            document.getElementById('kpi-previsao-campeoes').innerText = dadosPrevisao.length;
+            document.getElementById('kpi-max-nerf').innerText = dadosPrevisao.reduce((p, c) => (p.ProbNerf > c.ProbNerf) ? p : c).Name;
+            document.getElementById('kpi-max-buff').innerText = dadosPrevisao.reduce((p, c) => (p.ProbBuff > c.ProbBuff) ? p : c).Name;
+        }
+        function renderizarTabelaPrevisao(dados) {
+            const tbody = document.getElementById('tableBodyPrevisao');
+            tbody.innerHTML = '';
+            dados.forEach(linha => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${linha.Name || '-'}</strong></td>
+                    <td>${linha.WinRate.toFixed(2)}%</td>
+                    <td>${linha.PickRate.toFixed(2)}%</td>
+                    <td>${linha.BanRate.toFixed(2)}%</td>
+                    <td><span class="${linha.ProbNerf >= 15 ? 'prob-high-nerf' : ''}">${linha.ProbNerf.toFixed(1)}%</span></td>
+                    <td><span class="${linha.ProbBuff >= 15 ? 'prob-high-buff' : ''}">${linha.ProbBuff.toFixed(1)}%</span></td>
+                `;
+                tbody.appendChild(tr);
             });
+        }
+        document.getElementById('searchPrevisao').addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            renderizarTabelaPrevisao(dadosPrevisao.filter(linha => String(linha.Name).toLowerCase().includes(termo)));
         });
+
+        // ABA 3
+        function atualizarKPIsMecanicas() {
+            if (!dadosMecanicas.length) return;
+            document.getElementById('kpi-max-farm').innerText = dadosMecanicas.reduce((p, c) => (p.Minions_10min_Medio > c.Minions_10min_Medio) ? p : c).Campeao;
+            document.getElementById('kpi-max-dmg').innerText = dadosMecanicas.reduce((p, c) => (p.Dano_Equipe_Pct_Medio > c.Dano_Equipe_Pct_Medio) ? p : c).Campeao;
+            document.getElementById('kpi-max-dodge').innerText = dadosMecanicas.reduce((p, c) => (p.Skillshots_Dodged_Medio > c.Skillshots_Dodged_Medio) ? p : c).Campeao;
+        }
+        function renderizarTabelaMecanicas(dados) {
+            const tbody = document.getElementById('tableBodyMecanicas');
+            tbody.innerHTML = '';
+            dados.forEach(linha => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${linha.Campeao || '-'}</strong></td>
+                    <td>${linha.Numero_de_Jogos.toLocaleString('pt-BR')}</td>
+                    <td class="highlight-data">${linha.Minions_10min_Medio.toFixed(1).replace('.', ',')}</td>
+                    <td class="highlight-data">${linha.Dano_Equipe_Pct_Medio.toFixed(2).replace('.', ',')}%</td>
+                    <td>${linha.Skillshots_Dodged_Medio.toFixed(2).replace('.', ',')}</td>
+                    <td>${linha.Dodges_Milissegundo_Medio.toFixed(2).replace('.', ',')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        document.getElementById('searchMecanicas').addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            renderizarTabelaMecanicas(dadosMecanicas.filter(linha => String(linha.Campeao).toLowerCase().includes(termo)));
+        });
+
+        // SISTEMA DE ORDENAÇÃO
+        function ordenarTabela(tipo, coluna) {
+            let dados = tipo === 'historico' ? [...dadosHistorico] : (tipo === 'previsao' ? [...dadosPrevisao] : [...dadosMecanicas]);
+            let sortState = tipo === 'historico' ? sortHistorico : (tipo === 'previsao' ? sortPrevisao : sortMecanicas);
+            let barraBusca = tipo === 'historico' ? 'searchHistorico' : (tipo === 'previsao' ? 'searchPrevisao' : 'searchMecanicas');
+
+            if (sortState.coluna === coluna) sortState.ascendente = !sortState.ascendente;
+            else { sortState.coluna = coluna; sortState.ascendente = false; }
+
+            dados.sort((a, b) => {
+                let valorA = a[coluna]; let valorB = b[coluna];
+                if (typeof valorA === 'string' && coluna !== 'Patch') {
+                    return sortState.ascendente ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
+                } else {
+                    return sortState.ascendente ? valorA - valorB : valorB - valorA;
+                }
+            });
+
+            const termo = document.getElementById(barraBusca).value.toLowerCase();
+            const dadosFinais = dados.filter(linha => {
+                if (tipo === 'historico') return String(linha.Campeao).toLowerCase().includes(termo) || String(linha.Patch).includes(termo);
+                else if (tipo === 'previsao') return String(linha.Name).toLowerCase().includes(termo);
+                else return String(linha.Campeao).toLowerCase().includes(termo);
+            });
+
+            if (tipo === 'historico') renderizarTabelaHistorico(dadosFinais);
+            else if (tipo === 'previsao') renderizarTabelaPrevisao(dadosFinais);
+            else renderizarTabelaMecanicas(dadosFinais);
+        }
     </script>
 </body>
 </html>
